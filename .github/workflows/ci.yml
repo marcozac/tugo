@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - "**"
+      - "!main" # already requires pull request 
     tags-ignore:
       - "*.*"
     paths:
