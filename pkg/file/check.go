@@ -10,6 +10,8 @@ type ICheck interface {
 	// occurrence, the bool value is not reliable since it might
 	// be a false negative.
 	IsDir() (bool, error)
+
+	IsSymLink() (bool, error)
 }
 
 // Check returns a ICheck interface with underlying implementation
@@ -28,4 +30,9 @@ func Exists(f string) (r bool) {
 // IsDir is a shortcut for ICheck.IsDir().
 func IsDir(f string) (r bool, err error) {
 	return Check(f).IsDir()
+}
+
+// IsDir is a shortcut for ICheck.IsDir().
+func IsSymLink(f string) (r bool, err error) {
+	return Check(f).IsSymLink()
 }

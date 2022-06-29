@@ -3,13 +3,14 @@ on:
   push:
     branches:
       - "**"
-      - "!main" # already requires pull request 
+      - "!main" # already requires pull request
     tags-ignore:
       - "*.*"
     paths:
       - "**.go"
       - "go.mod"
       - "go.sum"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches:
       - "**"
@@ -20,38 +21,35 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
+  go:
     strategy:
       matrix:
-        go: [1.18]
-        os: [macos-latest, ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
+        go: [1.16, 1.17, 1.18]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3.2.0
-        with:
-          version: latest
-
-  test:
-    strategy:
-      matrix:
-        go: [1.18]
-        os: [macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go }}
-      - uses: actions/cache@v3
+      - name: Cache
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Run tests
-        run: go test -race ./...
+      - name: Lint with golangci-lint
+        uses: golangci/golangci-lint-action@v3.2.0
+        with:
+          version: latest
+      - name: Test and coverage
+        run: go test -v -cover -race -covermode=atomic -coverprofile=coverage.out ./...
+      - name: Upload coverage
+        uses: codecov/codecov-action@v2
+        with:
+          file: ./coverage.out
+          fail_ci_if_error: true
+          verbose: true

@@ -86,43 +86,95 @@ func TestCheckIsDir(t *testing.T) {
 	})
 }
 
+func TestCheckIsSymlink(t *testing.T) {
+	tmp := t.TempDir()
+	f, err := os.CreateTemp(tmp, "testing_file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	sln := f.Name() + "_link"
+	if err := os.Symlink(f.Name(), sln); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("is_symlink", func(t *testing.T) {
+		r, err := IsSymLink(sln)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if !r {
+			t.Error("false on symlink")
+		}
+	})
+
+	t.Run("is_not_symlink", func(t *testing.T) {
+		r, err := IsSymLink(f.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if r {
+			t.Fatal("true on non symlink")
+		}
+	})
+
+	t.Run("not_existing_err", func(t *testing.T) {
+		_, err := IsSymLink("fake_symlink")
+		if err == nil {
+			t.Fatal("not existing file error not reported")
+		}
+	})
+}
+
 func BenchmarkCheck(b *testing.B) {
 	tmp := b.TempDir()
-	c := Check(tmp)
+
+	f, err := os.CreateTemp(tmp, "testing_file")
+	if err != nil {
+		b.Fatal(err)
+	}
+	f.Close()
+
+	sl := f.Name() + "_link"
+	if err := os.Symlink(f.Name(), sl); err != nil {
+		b.Fatal(err)
+	}
+	csl := Check(sl)
 
 	b.Run("exists", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			bExists(b, c)
+			if !csl.Exists() {
+				b.Fatal("false on existing file")
+			}
 		}
 	})
 
 	b.Run("is_dir", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			bIsDir(b, c)
+			r, err := csl.IsDir()
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			if r {
+				b.Fatal("true on not directory")
+			}
 		}
 	})
 
-	b.Run("all", func(b *testing.B) {
+	b.Run("is_symlink", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			bExists(b, c)
-			bIsDir(b, c)
+			r, err := csl.IsSymLink()
+			if err != nil {
+				b.Error(err)
+			}
+
+			if !r {
+				b.Error("false on symlink")
+			}
 		}
 	})
-}
-
-func bExists(b *testing.B, c ICheck) {
-	if !c.Exists() {
-		b.Fatal("false on existing file")
-	}
-}
-
-func bIsDir(b *testing.B, c ICheck) {
-	r, err := c.IsDir()
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	if !r {
-		b.Fatal("false on directory")
-	}
 }
